@@ -7,7 +7,8 @@
 const express = require('express'),
 	bodyParser = require('body-parser'),
 	cors = require('cors'),
-	mongodb = require('mongodb')
+	mongodb = require('mongodb'),
+	ObjectId = mongodb.ObjectID;
 
 const clientSessions = require("client-sessions");
 const multer = require('multer')
@@ -24,13 +25,13 @@ var storage = multer.diskStorage({
 		cb(null, file.fieldname + '-' + Date.now() + ext)
 	}
 })
-var upload = multer({storage: storage})
+var upload = multer({ storage: storage })
 
 const app = express();
 
 var corsOptions = {
-  origin: /http:\/\/localhost:\d+/,
-  credentials: true
+	origin: /http:\/\/localhost:\d+/,
+	credentials: true
 };
 
 const serverRoot = 'http://localhost:3003/';
@@ -54,7 +55,7 @@ function dbConnect() {
 
 	return new Promise((resolve, reject) => {
 		// Connection URL
-		var url = 'mongodb://localhost:27017/seed';
+		var url = 'mongodb://localhost:27017/page_book';
 		// Use connect method to connect to the Server
 		mongodb.MongoClient.connect(url, function (err, db) {
 			if (err) {
@@ -78,7 +79,7 @@ app.get('/data/:objType', function (req, res) {
 		collection.find({}).toArray((err, objs) => {
 			if (err) {
 				cl('Cannot get you a list of ', err)
-				res.json(404, {error: 'not found'})
+				res.json(404, { error: 'not found' })
 			} else {
 				cl("Returning list of " + objs.length + " " + objType + "s");
 				res.json(objs);
@@ -87,6 +88,44 @@ app.get('/data/:objType', function (req, res) {
 		});
 	});
 });
+
+
+// GETs partial list of user's sites
+
+function buildQuery(siteIds) {
+
+	let queryObj = {
+		$or: []
+	}
+
+		siteIds.forEach(siteId => {
+			queryObj['$or'].push({ _id: ObjectId(siteId) });
+		});
+
+
+	return queryObj;
+
+}
+
+app.post('/data/sites/list', function (req, res) {
+	const query = buildQuery(req.body);
+	console.log(query);
+	dbConnect().then((db) => {
+		const collection = db.collection('sites');
+
+		collection.find(query, {_id: 1, siteName: 1}).toArray((err, objs) => {
+			if (err) {
+				cl('Cannot get you a list of ', err)
+				res.json(404, { error: 'not found' })
+			} else {
+				cl("Returning list of " + objs.length );
+				res.json(objs);
+			}
+			db.close();
+		});
+	});
+});
+
 
 // GETs a single
 app.get('/data/:objType/:id', function (req, res) {
@@ -99,23 +138,23 @@ app.get('/data/:objType/:id', function (req, res) {
 			const collection = db.collection(objType);
 			//let _id;
 			//try {
-			let	_id = new mongodb.ObjectID(objId);
+			let _id = new mongodb.ObjectID(objId);
 			//}
 			//catch (e) {
 			//	console.log('ERROR', e);
 			//	return Promise.reject(e);
 			//}
 
-			collection.find({_id: _id}).toArray((err, objs) => {
-						if (err) {
-							cl('Cannot get you that ', err)
-							res.json(404, {error: 'not found'})
-						} else {
-							cl("Returning a single " + objType);
-							res.json(objs[0]);
-						}
-						db.close();
-					});
+			collection.find({ _id: _id }).toArray((err, objs) => {
+				if (err) {
+					cl('Cannot get you that ', err)
+					res.json(404, { error: 'not found' })
+				} else {
+					cl("Returning a single " + objType);
+					res.json(objs[0]);
+				}
+				db.close();
+			});
 		});
 });
 
@@ -126,10 +165,10 @@ app.delete('/data/:objType/:id', function (req, res) {
 	cl(`Requested to DELETE the ${objType} with id: ${objId}`);
 	dbConnect().then((db) => {
 		const collection = db.collection(objType);
-		collection.deleteOne({_id: new mongodb.ObjectID(objId)}, (err, result) => {
+		collection.deleteOne({ _id: new mongodb.ObjectID(objId) }, (err, result) => {
 			if (err) {
 				cl('Cannot Delete', err)
-				res.json(500, {error: 'Delete failed'})
+				res.json(500, { error: 'Delete failed' })
 			} else {
 				cl("Deleted", result);
 				res.json({});
@@ -163,7 +202,7 @@ app.post('/data/:objType', upload.single('file'), function (req, res) {
 		collection.insert(obj, (err, result) => {
 			if (err) {
 				cl(`Couldnt insert a new ${objType}`, err)
-				res.json(500, {error: 'Failed to add'})
+				res.json(500, { error: 'Failed to add' })
 			} else {
 				cl(objType + " added");
 				res.json(obj);
@@ -175,39 +214,40 @@ app.post('/data/:objType', upload.single('file'), function (req, res) {
 });
 
 // PUT - updates
-app.put('/data/:objType/:id',  function (req, res) {
-	const objType 	= req.params.objType;
-	const objId 	= req.params.id;
-	const newObj 	= req.body;
-    if (newObj._id && typeof newObj._id === 'string') newObj._id = new mongodb.ObjectID(newObj._id);
-
-    cl(`Requested to UPDATE the ${objType} with id: ${objId}`);
+app.put('/data/:objType/:id', function (req, res) {
+	const objType = req.params.objType;
+	const objId = req.params.id;
+	const newObj = req.body;
+	if (newObj._id && typeof newObj._id === 'string') newObj._id = new mongodb.ObjectID(newObj._id);
+	console.log('newObj', newObj)
+	cl(`Requested to UPDATE the ${objType} with id: ${objId}`);
 	dbConnect().then((db) => {
 		const collection = db.collection(objType);
-		collection.updateOne({ _id:  new mongodb.ObjectID(objId)}, newObj,
-		 (err, result) => {
-			if (err) {
-				cl('Cannot Update', err)
-				res.json(500, { error: 'Update failed' })
-			} else {
-				res.json(newObj);
-			}
-			db.close();
-		});
+		collection.updateOne({ _id: new mongodb.ObjectID(objId) }, newObj,
+			(err, result) => {
+				if (err) {
+					cl('Cannot Update', err)
+					res.json(500, { error: 'Update failed' })
+				} else {
+					res.json(newObj);
+				}
+				db.close();
+			});
 	});
 });
 
 // Basic Login/Logout/Protected assets
 app.post('/login', function (req, res) {
-	console.log('req.body.username',req.body.username,'  req.body.pass',req.body.pass);
+	console.log('req.body.username', req.body.username, '  req.body.password', req.body.password);
 	dbConnect().then((db) => {
-		db.collection('user').findOne({username: req.body.username, pass: req.body.pass}, function (err, user) {
-		
+		db.collection('users').findOne({ username: req.body.username, password: req.body.password }, function (err, user) {
+
 			if (user) {
 				cl('Login Succesful');
-                delete user.pass;
+				cl(user);
+				delete user.password;
 				req.session.user = user;  //refresh the session value
-				res.json({token: 'Beareloginr: puk115th@b@5t', user});
+				res.json({ token: 'Beareloginr: puk115th@b@5t', user });
 			} else {
 				cl('Login NOT Succesful');
 				req.session.user = null;
@@ -225,7 +265,7 @@ app.get('/logout', function (req, res) {
 function requireLogin(req, res, next) {
 	if (!req.session.user) {
 		cl('Login Required');
-		res.json(403, {error: 'Please Login'})
+		res.json(403, { error: 'Please Login' })
 	} else {
 		next();
 	}
@@ -268,6 +308,7 @@ function cl(...params) {
 }
 
 // Just for basic testing the socket
+
 app.get('/', function(req, res){
   res.sendFile(__dirname + '/test-socket.html');
 });
