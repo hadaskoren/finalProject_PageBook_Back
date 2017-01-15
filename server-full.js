@@ -55,7 +55,7 @@ function dbConnect() {
 
 	return new Promise((resolve, reject) => {
 		// Connection URL
-		var url = 'mongodb://localhost:27017/seed';
+		var url = 'mongodb://localhost:27017/page_book';
 		// Use connect method to connect to the Server
 		mongodb.MongoClient.connect(url, function (err, db) {
 			if (err) {
@@ -181,7 +181,7 @@ app.put('/data/:objType/:id',  function (req, res) {
 	const objId 	= req.params.id;
 	const newObj 	= req.body;
     if (newObj._id && typeof newObj._id === 'string') newObj._id = new mongodb.ObjectID(newObj._id);
-
+	console.log('newObj', newObj)
     cl(`Requested to UPDATE the ${objType} with id: ${objId}`);
 	dbConnect().then((db) => {
 		const collection = db.collection(objType);
@@ -200,13 +200,14 @@ app.put('/data/:objType/:id',  function (req, res) {
 
 // Basic Login/Logout/Protected assets
 app.post('/login', function (req, res) {
-	console.log('req.body.username',req.body.username,'  req.body.pass',req.body.pass);
+	console.log('req.body.username',req.body.username,'  req.body.password',req.body.password);
 	dbConnect().then((db) => {
-		db.collection('user').findOne({username: req.body.username, pass: req.body.pass}, function (err, user) {
+		db.collection('users').findOne({username: req.body.username, password: req.body.password}, function (err, user) {
 		
 			if (user) {
 				cl('Login Succesful');
-                delete user.pass;
+				cl(user);
+                delete user.password;
 				req.session.user = user;  //refresh the session value
 				res.json({token: 'Beareloginr: puk115th@b@5t', user});
 			} else {
