@@ -50,7 +50,6 @@ app.use(clientSessions({
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
 
-
 function dbConnect() {
 
 	return new Promise((resolve, reject) => {
@@ -271,4 +270,21 @@ function cl(...params) {
 // Just for basic testing the socket
 app.get('/', function(req, res){
   res.sendFile(__dirname + '/test-socket.html');
+});
+
+app.post('/upload', function (req, res) {
+	console.log('image log', req.files.file.path);
+    var tempPath = req.files.file.path,
+        targetPath = path.resolve('./uploads/images/image.png');
+    if (path.extname(req.files.file.name).toLowerCase() === '.png') {
+        fs.rename(tempPath, targetPath, function(err) {
+            if (err) throw err;
+            console.log("Upload completed!");
+        });
+    } else {
+        fs.unlink(tempPath, function () {
+            if (err) throw err;
+            console.error("Only .png files are allowed!");
+        });
+    }
 });
