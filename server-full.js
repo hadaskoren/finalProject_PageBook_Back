@@ -98,9 +98,9 @@ function buildQuery(siteIds) {
 		$or: []
 	}
 
-		siteIds.forEach(siteId => {
-			queryObj['$or'].push({ _id: ObjectId(siteId) });
-		});
+	siteIds.forEach(siteId => {
+		queryObj['$or'].push({ _id: ObjectId(siteId) });
+	});
 
 
 	return queryObj;
@@ -113,12 +113,12 @@ app.post('/data/sites/list', function (req, res) {
 	dbConnect().then((db) => {
 		const collection = db.collection('sites');
 
-		collection.find(query, {_id: 1, siteName: 1}).toArray((err, objs) => {
+		collection.find(query, { _id: 1, siteName: 1 }).toArray((err, objs) => {
 			if (err) {
 				cl('Cannot get you a list of ', err)
 				res.json(404, { error: 'not found' })
 			} else {
-				cl("Returning list of " + objs.length );
+				cl("Returning list of " + objs.length);
 				res.json(objs);
 			}
 			db.close();
@@ -198,6 +198,35 @@ app.post('/data/:objType', upload.single('file'), function (req, res) {
 
 	dbConnect().then((db) => {
 		const collection = db.collection(objType);
+
+		collection.insert(obj, (err, result) => {
+			if (err) {
+				cl(`Couldnt insert a new ${objType}`, err)
+				res.json(500, { error: 'Failed to add' })
+			} else {
+				cl(objType + " added");
+				res.json(obj);
+				db.close();
+			}
+		});
+	});
+
+});
+
+
+// SIGNUP
+
+
+app.post('/signup', function (req, res) {
+	console.log('req.body', req.body);
+
+	const objType = req.params.objType;
+
+	const obj = req.body;
+	
+
+	dbConnect().then((db) => {
+		const collection = db.collection('users');
 
 		collection.insert(obj, (err, result) => {
 			if (err) {
@@ -309,23 +338,23 @@ function cl(...params) {
 
 // Just for basic testing the socket
 
-app.get('/', function(req, res){
-  res.sendFile(__dirname + '/test-socket.html');
+app.get('/', function (req, res) {
+	res.sendFile(__dirname + '/test-socket.html');
 });
 
 app.post('/upload', function (req, res) {
 	console.log('image log', req.files.file.path);
-    var tempPath = req.files.file.path,
-        targetPath = path.resolve('./uploads/images/image.png');
-    if (path.extname(req.files.file.name).toLowerCase() === '.png') {
-        fs.rename(tempPath, targetPath, function(err) {
-            if (err) throw err;
-            console.log("Upload completed!");
-        });
-    } else {
-        fs.unlink(tempPath, function () {
-            if (err) throw err;
-            console.error("Only .png files are allowed!");
-        });
-    }
+	var tempPath = req.files.file.path,
+		targetPath = path.resolve('./uploads/images/image.png');
+	if (path.extname(req.files.file.name).toLowerCase() === '.png') {
+		fs.rename(tempPath, targetPath, function (err) {
+			if (err) throw err;
+			console.log("Upload completed!");
+		});
+	} else {
+		fs.unlink(tempPath, function () {
+			if (err) throw err;
+			console.error("Only .png files are allowed!");
+		});
+	}
 });
