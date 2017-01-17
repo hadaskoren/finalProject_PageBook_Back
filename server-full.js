@@ -93,18 +93,13 @@ app.get('/data/:objType', function (req, res) {
 // GETs partial list of user's sites
 
 function buildQuery(siteIds) {
-
 	let queryObj = {
 		$or: []
 	}
-
 	siteIds.forEach(siteId => {
 		queryObj['$or'].push({ _id: ObjectId(siteId) });
 	});
-
-
 	return queryObj;
-
 }
 
 app.post('/data/sites/list', function (req, res) {
@@ -220,7 +215,6 @@ app.post('/data/:objType', upload.single('file'), function (req, res) {
 app.post('/signup', function (req, res) {
 	console.log('req.body', req.body);
 
-	const objType = req.params.objType;
 
 	const obj = req.body;
 	
@@ -230,10 +224,10 @@ app.post('/signup', function (req, res) {
 
 		collection.insert(obj, (err, result) => {
 			if (err) {
-				cl(`Couldnt insert a new ${objType}`, err)
+				cl(`Couldnt insert a new `, err)
 				res.json(500, { error: 'Failed to add' })
 			} else {
-				cl(objType + " added");
+				cl('user' + " added");
 				res.json(obj);
 				db.close();
 			}
