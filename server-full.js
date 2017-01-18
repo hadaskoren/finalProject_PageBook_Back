@@ -236,6 +236,27 @@ app.post('/signup', function (req, res) {
 
 });
 
+// New site
+app.post('/newSite', function (req, res) {
+	console.log('req.body', req.body);
+	const obj = req.body;
+	dbConnect().then((db) => {
+		const collection = db.collection('sites');
+
+		collection.insert(obj, (err, result) => {
+			if (err) {
+				cl(`Couldnt insert a new `, err)
+				res.json(500, { error: 'Failed to add' })
+			} else {
+				cl('result', result.ops[0]);
+				cl('site' + " added");
+				res.json(result.ops[0]);
+				db.close();
+			}
+		});
+	});
+
+});
 // PUT - updates
 app.put('/data/:objType/:id', function (req, res) {
 	const objType = req.params.objType;
@@ -310,7 +331,6 @@ http.listen(3003, function () {
 	console.log(`POST (add): \t\t ${baseUrl}/{entity}`);
 
 });
-
 
 io.on('connection', function (socket) {
 	console.log('a user connected');
