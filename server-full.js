@@ -103,6 +103,8 @@ function buildQuery(siteIds) {
 }
 
 app.post('/data/sites/list', function (req, res) {
+	console.log('sushiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii');
+	console.log(req.body);
 	const query = buildQuery(req.body);
 	console.log(query);
 	dbConnect().then((db) => {
@@ -217,7 +219,7 @@ app.post('/signup', function (req, res) {
 
 
 	const obj = req.body;
-	
+
 
 	dbConnect().then((db) => {
 		const collection = db.collection('users');
@@ -280,15 +282,55 @@ app.put('/data/:objType/:id', function (req, res) {
 	});
 });
 
-// Basic Login/Logout/Protected assets
-app.post('/login', function (req, res) {
-	console.log('req.body.username', req.body.username, '  req.body.password', req.body.password);
-	dbConnect().then((db) => {
-		db.collection('users').findOne({ username: req.body.username, password: req.body.password }, function (err, user) {
 
+
+// let token = {};
+// token.timeStamp = Date.now();
+// token.id = Math.random().toString(36).substr(2) + Math.random().toString(36).substr(2);
+// return token;
+
+// function updateUserTokenInDB(user, db) {
+// 	// const token = createToken();
+// 	user.token = createToken()
+// 	// console.log(user);
+// 	const collection = db.collection('users');
+// 	collection.updateOne({ _id: new ObjectId(user._id) }, user,
+// 		(err, result) => {
+// 			if (err) {
+// 				cl('Cannot Update', err)
+// 				res.json(500, { error: 'Update failed' })
+// 			} else {
+// 				// db.close();
+// 				return user;
+// 				//res.json(user);
+// 			}
+// 		});
+// }
+
+function createToken() {
+	let token = {};
+	function s4() {
+		return Math.floor((1 + Math.random()) * 0x10000)
+			.toString(16)
+			.substring(1);
+	}
+	token.id = s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+		s4() + '-' + s4() + s4() + s4() + s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+		s4() + '-' + s4() + s4() + s4();
+	token.timeStamp = Date.now();
+	return token;	
+}
+
+
+app.post('/token-login', function (req, res) {
+	console.log('tokennnnnnnnnnnnnnnnn', req.body.token);
+	dbConnect().then((db) => {
+		db.collection('users').findOne({ token: req.body.token }, function (err, user) {
+			console.log(user);
 			if (user) {
 				cl('Login Succesful');
 				cl(user);
+				// user = updateUserTokenInDB(user, db);
 				delete user.password;
 				req.session.user = user;  //refresh the session value
 				res.json({ token: 'Beareloginr: puk115th@b@5t', user });
@@ -298,6 +340,56 @@ app.post('/login', function (req, res) {
 				res.json(403, { error: 'Login failed' })
 			}
 		});
+		
+	});
+});
+
+
+// Basic Login/Logout/Protected assets
+app.post('/login', function (req, res) {
+	console.log('req.body.username', req.body.username, '  req.body.password', req.body.password);
+	dbConnect().then((db) => {
+		// db.collection('users').findOne({ username: req.body.username, password: req.body.password }, function (err, user) {
+
+		// 	if (user) {
+		// 		cl('Login Succesful');
+		// 		cl(user);
+		// 		user = updateUserTokenInDB(user, db);
+		// 		delete user.password;
+		// 		req.session.user = user;  //refresh the session value
+		// 		res.json({ token: 'Beareloginr: puk115th@b@5t', user });
+		// 	} else {
+		// 		cl('Login NOT Succesful');
+		// 		req.session.user = null;
+		// 		res.json(403, { error: 'Login failed' })
+		// 	}
+		// });
+		const newToken = createToken();
+		db.collection('users').findAndModify(
+			{
+				username: req.body.username,
+				password: req.body.password
+			},
+			[['username', 1]],
+			{
+				$set: {
+					token: newToken
+				}
+			},
+			{ new: true },
+			function (err, user) {
+				if (user) {
+					cl('Login Succesful');
+					cl(user.value);
+					delete user.password;
+					//req.session.user = user;  //refresh the session value
+					res.json(user.value);
+				} else {
+					cl('Login NOT Succesful');
+					req.session.user = null;
+					res.json(403, { error: 'Login failed' })
+				}
+			});
 	});
 });
 
