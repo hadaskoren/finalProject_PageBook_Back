@@ -238,12 +238,45 @@ app.post('/signup', function (req, res) {
 
 });
 
+function updateUserSitesIds(newId, userInfo, userCollection) {
+	console.log('newIddddd', newId);
+	console.log('userInfooooooid', userInfo.id);
+	userInfo.sitesIds.push(newId + '');
+	console.log('hhhhh', userInfo.sitesIds);
+	userCollection.findAndModify(
+		{
+			_id: ObjectId(userInfo.id),
+		},
+		[['username', 1]],
+		{
+			$set: {
+				siteIds: userInfo.sitesIds
+			}
+		},
+		{ new: true },
+		function (err, user) {
+			if (user) {
+				// cl('Login Succesful');
+				// cl(user.value);
+				// delete user.password;
+				//req.session.user = user;  //refresh the session value
+				// res.json(user.value);
+			} else {
+				// cl('Login NOT Succesful');
+				// req.session.user = null;
+				// res.json(403, { error: 'Login failed' })
+			}
+		});
+}
+
+
 // New site
 app.post('/newSite', function (req, res) {
 	console.log('req.body', req.body);
-	const obj = req.body;
+	const obj = req.body.site;
 	dbConnect().then((db) => {
 		const collection = db.collection('sites');
+		const userCollection = db.collection('users');
 
 		collection.insert(obj, (err, result) => {
 			if (err) {
@@ -252,6 +285,9 @@ app.post('/newSite', function (req, res) {
 			} else {
 				cl('result', result.ops[0]);
 				cl('site' + " added");
+				updateUserSitesIds(result.ops[0]._id, req.body.userInfo, userCollection);
+
+
 				res.json(result.ops[0]);
 				db.close();
 			}
@@ -318,7 +354,7 @@ function createToken() {
 		s4() + '-' + s4() + s4() + s4() + s4() + s4() + '-' + s4() + '-' + s4() + '-' +
 		s4() + '-' + s4() + s4() + s4();
 	token.timeStamp = Date.now();
-	return token;	
+	return token;
 }
 
 
@@ -340,7 +376,7 @@ app.post('/token-login', function (req, res) {
 				res.json(403, { error: 'Login failed' })
 			}
 		});
-		
+
 	});
 });
 
