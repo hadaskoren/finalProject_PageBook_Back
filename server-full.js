@@ -156,22 +156,37 @@ app.get('/data/:objType/:id', function (req, res) {
 });
 
 // DELETE
-app.delete('/data/:objType/:id', function (req, res) {
-	const objType = req.params.objType;
-	const objId = req.params.id;
-	cl(`Requested to DELETE the ${objType} with id: ${objId}`);
+app.delete('/deleteSite/:id', function (req, res) {
+
+	// db.getCollection('users').updateMany(
+	// 	{ siteIds: "587b5eb54bbf2aa01263320f" },
+	// 	{ $pull: { siteIds: "587b5eb54bbf2aa01263320f" } }
+	// );
+	// const objType = req.params.objType;
+	const siteId = req.params.id;
+
+	console.log('site to delet id:', siteId)
 	dbConnect().then((db) => {
-		const collection = db.collection(objType);
-		collection.deleteOne({ _id: new mongodb.ObjectID(objId) }, (err, result) => {
+		const sitesCollection = db.collection('sites');
+		const usersCollection = db.collection('users');
+		sitesCollection.deleteOne({ _id: ObjectId(siteId) }, (err, result) => {
 			if (err) {
 				cl('Cannot Delete', err)
 				res.json(500, { error: 'Delete failed' })
 			} else {
 				cl("Deleted", result);
+				usersCollection.updateMany(
+					{ siteIds: siteId },
+					{ $pull: { siteIds: siteId } },
+					(err, result) => {
+						console.log('yayyayayayyayayay');
+						cl(result);
+					});
 				res.json({});
 			}
 			db.close();
 		});
+
 
 	});
 
