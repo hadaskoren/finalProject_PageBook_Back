@@ -13,11 +13,6 @@ const express = require('express'),
 const clientSessions = require("client-sessions");
 const multer = require('multer')
 
-var port = process.env.PORT || 3003;
-var mongoUrl = (process.env.PORT ? 'mongodb://shmixadmin:misterbit@ds117189.mlab.com:17189/page_book' : 'mongodb://localhost:27017/page_book');
-
-console.log('mongoUrl', mongoUrl);
-
 // Configure where uploaded files are going
 const uploadFolder = '/uploads';
 var storage = multer.diskStorage({
@@ -33,7 +28,6 @@ var storage = multer.diskStorage({
 var upload = multer({ storage: storage })
 
 const app = express();
-app.use('/', express.static(__dirname));
 
 var corsOptions = {
 	origin: /http:\/\/localhost:\d+/,
@@ -55,13 +49,15 @@ app.use(clientSessions({
 }));
 
 const http = require('http').Server(app);
+const io = require('socket.io')(http);
 
 function dbConnect() {
 
 	return new Promise((resolve, reject) => {
 		// Connection URL
+		var url = 'mongodb://localhost:27017/page_book';
 		// Use connect method to connect to the Server
-		mongodb.MongoClient.connect(mongoUrl, function (err, db) {
+		mongodb.MongoClient.connect(url, function (err, db) {
 			if (err) {
 				cl('Cannot connect to DB', err)
 				reject(err);
@@ -129,35 +125,35 @@ app.post('/data/sites/list', function (req, res) {
 
 
 // GETs a single
-app.get('/data/:objType/:id', function (req, res) {
-	const objType = req.params.objType;
-	const objId = req.params.id;
-	console.log('');
-	cl(`Getting you an ${objType} with id: ${objId}`);
-	dbConnect()
-		.then((db) => {
-			const collection = db.collection(objType);
-			//let _id;
-			//try {
-			let _id = new mongodb.ObjectID(objId);
-			//}
-			//catch (e) {
-			//	console.log('ERROR', e);
-			//	return Promise.reject(e);
-			//}
+// app.get('/data/:objType/:id', function (req, res) {
+// 	const objType = req.params.objType;
+// 	const objId = req.params.id;
+// 	console.log('');
+// 	cl(`Getting you an ${objType} with id: ${objId}`);
+// 	dbConnect()
+// 		.then((db) => {
+// 			const collection = db.collection(objType);
+// 			//let _id;
+// 			//try {
+// 			let _id = new mongodb.ObjectID(objId);
+// 			//}
+// 			//catch (e) {
+// 			//	console.log('ERROR', e);
+// 			//	return Promise.reject(e);
+// 			//}
 
-			collection.find({ _id: _id }).toArray((err, objs) => {
-				if (err) {
-					cl('Cannot get you that ', err)
-					res.json(404, { error: 'not found' })
-				} else {
-					cl("Returning a single " + objType);
-					res.json(objs[0]);
-				}
-				db.close();
-			});
-		});
-});
+// 			collection.find({ _id: _id }).toArray((err, objs) => {
+// 				if (err) {
+// 					cl('Cannot get you that ', err)
+// 					res.json(404, { error: 'not found' })
+// 				} else {
+// 					cl("Returning a single " + objType);
+// 					res.json(objs[0]);
+// 				}
+// 				db.close();
+// 			});
+// 		});
+// });
 
 // DELETE
 app.delete('/deleteSite/:id', function (req, res) {
@@ -304,10 +300,7 @@ app.post('/newSite', function (req, res) {
 			} else {
 				cl('result', result.ops[0]);
 				cl('site' + " added");
-
-				let wantedId = (result._id ? result._id : result.ops[0]._id);
-
-				updateUserSitesIds(wantedId, req.body.userInfo, userCollection);
+				updateUserSitesIds(result.ops[0]._id, req.body.userInfo, userCollection);
 
 
 				res.json(result.ops[0]);
@@ -468,24 +461,18 @@ function requireLogin(req, res, next) {
 // 	res.end('User is loggedin, return some data');
 // });
 
-app.use('/*', express.static(__dirname));
-
 
 // Kickup our server 
 // Note: app.listen will not work with cors and the socket
 // app.listen(3003, function () {
-// http.listen(3003, function () {
-// 	// console.log(`misterREST server is ready at ${baseUrl}`);
-// 	// console.log(`GET (list): \t\t ${baseUrl}/{entity}`);
-// 	// console.log(`GET (single): \t\t ${baseUrl}/{entity}/{id}`);
-// 	// console.log(`DELETE: \t\t ${baseUrl}/{entity}/{id}`);
-// 	// console.log(`PUT (update): \t\t ${baseUrl}/{entity}/{id}`);
-// 	// console.log(`POST (add): \t\t ${baseUrl}/{entity}`);
+http.listen(3003, function () {
+	// console.log(`misterREST server is ready at ${baseUrl}`);
+	// console.log(`GET (list): \t\t ${baseUrl}/{entity}`);
+	// console.log(`GET (single): \t\t ${baseUrl}/{entity}/{id}`);
+	// console.log(`DELETE: \t\t ${baseUrl}/{entity}/{id}`);
+	// console.log(`PUT (update): \t\t ${baseUrl}/{entity}/{id}`);
+	// console.log(`POST (add): \t\t ${baseUrl}/{entity}`);
 
-// });
-
-app.listen(port, function () {
-  console.log('server started ' + port);
 });
 
 // io.on('connection', function (socket) {
@@ -528,4 +515,3 @@ function cl(...params) {
 // 		});
 // 	}
 // });
-
