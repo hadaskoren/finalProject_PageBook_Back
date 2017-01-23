@@ -254,10 +254,7 @@ app.post('/signup', function (req, res) {
 });
 
 function updateUserSitesIds(newId, userInfo, userCollection) {
-	console.log('newIddddd', newId);
-	console.log('userInfooooooid', userInfo.id);
 	userInfo.sitesIds.push(newId + '');
-	console.log('hhhhh', userInfo.sitesIds);
 	userCollection.findAndModify(
 		{
 			_id: ObjectId(userInfo.id),
@@ -287,7 +284,6 @@ function updateUserSitesIds(newId, userInfo, userCollection) {
 
 // New site
 app.post('/newSite', function (req, res) {
-	console.log('req.body', req.body);
 	const obj = req.body.site;
 	dbConnect().then((db) => {
 		const collection = db.collection('sites');
@@ -316,7 +312,6 @@ app.put('/data/:objType/:id', function (req, res) {
 	const objId = req.params.id;
 	const newObj = req.body;
 	if (newObj._id && typeof newObj._id === 'string') newObj._id = new mongodb.ObjectID(newObj._id);
-	console.log('newObj', newObj)
 	cl(`Requested to UPDATE the ${objType} with id: ${objId}`);
 	dbConnect().then((db) => {
 		const collection = db.collection(objType);
@@ -374,10 +369,8 @@ function createToken() {
 
 
 app.post('/token-login', function (req, res) {
-	console.log('tokennnnnnnnnnnnnnnnn', req.body.token);
 	dbConnect().then((db) => {
 		db.collection('users').findOne({ token: req.body.token }, function (err, user) {
-			console.log(user);
 			if (user) {
 				cl('Login Succesful');
 				cl(user);
@@ -396,25 +389,9 @@ app.post('/token-login', function (req, res) {
 });
 
 
-// Basic Login/Logout/Protected assets
 app.post('/login', function (req, res) {
-	console.log('req.body.username', req.body.username, '  req.body.password', req.body.password);
 	dbConnect().then((db) => {
-		// db.collection('users').findOne({ username: req.body.username, password: req.body.password }, function (err, user) {
-
-		// 	if (user) {
-		// 		cl('Login Succesful');
-		// 		cl(user);
-		// 		user = updateUserTokenInDB(user, db);
-		// 		delete user.password;
-		// 		req.session.user = user;  //refresh the session value
-		// 		res.json({ token: 'Beareloginr: puk115th@b@5t', user });
-		// 	} else {
-		// 		cl('Login NOT Succesful');
-		// 		req.session.user = null;
-		// 		res.json(403, { error: 'Login failed' })
-		// 	}
-		// });
+		
 		const newToken = createToken();
 		db.collection('users').findAndModify(
 			{
@@ -500,6 +477,7 @@ app.get('/', function (req, res) {
 });
 
 app.post('/upload', function (req, res) {
+	console.log('/upload on server');
 	console.log('image log', req.files.file.path);
 	var tempPath = req.files.file.path,
 		targetPath = path.resolve('./uploads/images/image.png');
