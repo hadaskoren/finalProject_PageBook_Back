@@ -13,11 +13,6 @@ const express = require('express'),
 const clientSessions = require("client-sessions");
 const multer = require('multer')
 
-var port = process.env.PORT || 3003;
-var mongoUrl = (process.env.PORT ? 'mongodb://shmixadmin:misterbit@ds117189.mlab.com:17189/page_book' : 'mongodb://localhost:27017/page_book');
-
-console.log('mongoUrl', mongoUrl);
-
 // Configure where uploaded files are going
 const uploadFolder = '/uploads';
 var storage = multer.diskStorage({
@@ -33,7 +28,6 @@ var storage = multer.diskStorage({
 var upload = multer({ storage: storage })
 
 const app = express();
-app.use('/', express.static(__dirname));
 
 var corsOptions = {
 	origin: /http:\/\/localhost:\d+/,
@@ -55,13 +49,15 @@ app.use(clientSessions({
 }));
 
 const http = require('http').Server(app);
+const io = require('socket.io')(http);
 
 function dbConnect() {
 
 	return new Promise((resolve, reject) => {
 		// Connection URL
+		var url = 'mongodb://localhost:27017/page_book';
 		// Use connect method to connect to the Server
-		mongodb.MongoClient.connect(mongoUrl, function (err, db) {
+		mongodb.MongoClient.connect(url, function (err, db) {
 			if (err) {
 				cl('Cannot connect to DB', err)
 				reject(err);
@@ -129,35 +125,35 @@ app.post('/data/sites/list', function (req, res) {
 
 
 // GETs a single
-app.get('/data/:objType/:id', function (req, res) {
-	const objType = req.params.objType;
-	const objId = req.params.id;
-	console.log('');
-	cl(`Getting you an ${objType} with id: ${objId}`);
-	dbConnect()
-		.then((db) => {
-			const collection = db.collection(objType);
-			//let _id;
-			//try {
-			let _id = new mongodb.ObjectID(objId);
-			//}
-			//catch (e) {
-			//	console.log('ERROR', e);
-			//	return Promise.reject(e);
-			//}
+// app.get('/data/:objType/:id', function (req, res) {
+// 	const objType = req.params.objType;
+// 	const objId = req.params.id;
+// 	console.log('');
+// 	cl(`Getting you an ${objType} with id: ${objId}`);
+// 	dbConnect()
+// 		.then((db) => {
+// 			const collection = db.collection(objType);
+// 			//let _id;
+// 			//try {
+// 			let _id = new mongodb.ObjectID(objId);
+// 			//}
+// 			//catch (e) {
+// 			//	console.log('ERROR', e);
+// 			//	return Promise.reject(e);
+// 			//}
 
-			collection.find({ _id: _id }).toArray((err, objs) => {
-				if (err) {
-					cl('Cannot get you that ', err)
-					res.json(404, { error: 'not found' })
-				} else {
-					cl("Returning a single " + objType);
-					res.json(objs[0]);
-				}
-				db.close();
-			});
-		});
-});
+// 			collection.find({ _id: _id }).toArray((err, objs) => {
+// 				if (err) {
+// 					cl('Cannot get you that ', err)
+// 					res.json(404, { error: 'not found' })
+// 				} else {
+// 					cl("Returning a single " + objType);
+// 					res.json(objs[0]);
+// 				}
+// 				db.close();
+// 			});
+// 		});
+// });
 
 // DELETE
 app.delete('/deleteSite/:id', function (req, res) {
@@ -258,7 +254,10 @@ app.post('/signup', function (req, res) {
 });
 
 function updateUserSitesIds(newId, userInfo, userCollection) {
+	console.log('newIddddd', newId);
+	console.log('userInfooooooid', userInfo.id);
 	userInfo.sitesIds.push(newId + '');
+	console.log('hhhhh', userInfo.sitesIds);
 	userCollection.findAndModify(
 		{
 			_id: ObjectId(userInfo.id),
@@ -288,6 +287,7 @@ function updateUserSitesIds(newId, userInfo, userCollection) {
 
 // New site
 app.post('/newSite', function (req, res) {
+	console.log('req.body', req.body);
 	const obj = req.body.site;
 	dbConnect().then((db) => {
 		const collection = db.collection('sites');
@@ -300,10 +300,7 @@ app.post('/newSite', function (req, res) {
 			} else {
 				cl('result', result.ops[0]);
 				cl('site' + " added");
-
-				let wantedId = (result._id ? result._id : result.ops[0]._id);
-
-				updateUserSitesIds(wantedId, req.body.userInfo, userCollection);
+				updateUserSitesIds(result.ops[0]._id, req.body.userInfo, userCollection);
 
 
 				res.json(result.ops[0]);
@@ -313,28 +310,28 @@ app.post('/newSite', function (req, res) {
 	});
 
 });
-
-app.put('/data/:objType/:id', function (req, res) {
-	const objType = req.params.objType;
-	const objId = req.params.id;
-	const newObj = req.body;
-	if (newObj._id && typeof newObj._id === 'string') newObj._id = new mongodb.ObjectID(newObj._id);
-	cl(`Requested to UPDATE the ${objType} with id: ${objId}`);
-	dbConnect().then((db) => {
-		const collection = db.collection(objType);
-		collection.updateOne({ _id: new mongodb.ObjectID(objId) }, newObj,
-			(err, result) => {
-				if (err) {
-					cl('Cannot Update', err)
-					res.json(500, { error: 'Update failed' })
-				} else {
-					res.json(newObj);
-				}
-				db.close();
-			});
-	});
-});
-
+// PUT - updates
+// app.put('/data/:objType/:id', function (req, res) {
+// 	const objType = req.params.objType;
+// 	const objId = req.params.id;
+// 	const newObj = req.body;
+// 	if (newObj._id && typeof newObj._id === 'string') newObj._id = new mongodb.ObjectID(newObj._id);
+// 	console.log('newObj', newObj)
+// 	cl(`Requested to UPDATE the ${objType} with id: ${objId}`);
+// 	dbConnect().then((db) => {
+// 		const collection = db.collection(objType);
+// 		collection.updateOne({ _id: new mongodb.ObjectID(objId) }, newObj,
+// 			(err, result) => {
+// 				if (err) {
+// 					cl('Cannot Update', err)
+// 					res.json(500, { error: 'Update failed' })
+// 				} else {
+// 					res.json(newObj);
+// 				}
+// 				db.close();
+// 			});
+// 	});
+// });
 
 
 
@@ -377,8 +374,10 @@ function createToken() {
 
 
 app.post('/token-login', function (req, res) {
+	console.log('tokennnnnnnnnnnnnnnnn', req.body.token);
 	dbConnect().then((db) => {
 		db.collection('users').findOne({ token: req.body.token }, function (err, user) {
+			console.log(user);
 			if (user) {
 				cl('Login Succesful');
 				cl(user);
@@ -397,9 +396,25 @@ app.post('/token-login', function (req, res) {
 });
 
 
+// Basic Login/Logout/Protected assets
 app.post('/login', function (req, res) {
+	console.log('req.body.username', req.body.username, '  req.body.password', req.body.password);
 	dbConnect().then((db) => {
-		
+		// db.collection('users').findOne({ username: req.body.username, password: req.body.password }, function (err, user) {
+
+		// 	if (user) {
+		// 		cl('Login Succesful');
+		// 		cl(user);
+		// 		user = updateUserTokenInDB(user, db);
+		// 		delete user.password;
+		// 		req.session.user = user;  //refresh the session value
+		// 		res.json({ token: 'Beareloginr: puk115th@b@5t', user });
+		// 	} else {
+		// 		cl('Login NOT Succesful');
+		// 		req.session.user = null;
+		// 		res.json(403, { error: 'Login failed' })
+		// 	}
+		// });
 		const newToken = createToken();
 		db.collection('users').findAndModify(
 			{
@@ -446,24 +461,18 @@ function requireLogin(req, res, next) {
 // 	res.end('User is loggedin, return some data');
 // });
 
-app.use('/*', express.static(__dirname));
-
 
 // Kickup our server 
 // Note: app.listen will not work with cors and the socket
 // app.listen(3003, function () {
-// http.listen(3003, function () {
-// 	// console.log(`misterREST server is ready at ${baseUrl}`);
-// 	// console.log(`GET (list): \t\t ${baseUrl}/{entity}`);
-// 	// console.log(`GET (single): \t\t ${baseUrl}/{entity}/{id}`);
-// 	// console.log(`DELETE: \t\t ${baseUrl}/{entity}/{id}`);
-// 	// console.log(`PUT (update): \t\t ${baseUrl}/{entity}/{id}`);
-// 	// console.log(`POST (add): \t\t ${baseUrl}/{entity}`);
+http.listen(3003, function () {
+	// console.log(`misterREST server is ready at ${baseUrl}`);
+	// console.log(`GET (list): \t\t ${baseUrl}/{entity}`);
+	// console.log(`GET (single): \t\t ${baseUrl}/{entity}/{id}`);
+	// console.log(`DELETE: \t\t ${baseUrl}/{entity}/{id}`);
+	// console.log(`PUT (update): \t\t ${baseUrl}/{entity}/{id}`);
+	// console.log(`POST (add): \t\t ${baseUrl}/{entity}`);
 
-// });
-
-app.listen(port, function () {
-  console.log('server started ' + port);
 });
 
 // io.on('connection', function (socket) {
@@ -490,20 +499,19 @@ function cl(...params) {
 // 	res.sendFile(__dirname + '/test-socket.html');
 // });
 
-app.post('/upload', function (req, res) {
-	console.log('/upload on server');
-	console.log('image log', req.files.file.path);
-	var tempPath = req.files.file.path,
-		targetPath = path.resolve('./uploads/images/image.png');
-	if (path.extname(req.files.file.name).toLowerCase() === '.png') {
-		fs.rename(tempPath, targetPath, function (err) {
-			if (err) throw err;
-			console.log("Upload completed!");
-		});
-	} else {
-		fs.unlink(tempPath, function () {
-			if (err) throw err;
-			console.error("Only .png files are allowed!");
-		});
-	}
-});
+// app.post('/upload', function (req, res) {
+// 	console.log('image log', req.files.file.path);
+// 	var tempPath = req.files.file.path,
+// 		targetPath = path.resolve('./uploads/images/image.png');
+// 	if (path.extname(req.files.file.name).toLowerCase() === '.png') {
+// 		fs.rename(tempPath, targetPath, function (err) {
+// 			if (err) throw err;
+// 			console.log("Upload completed!");
+// 		});
+// 	} else {
+// 		fs.unlink(tempPath, function () {
+// 			if (err) throw err;
+// 			console.error("Only .png files are allowed!");
+// 		});
+// 	}
+// });
